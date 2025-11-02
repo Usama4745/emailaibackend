@@ -35,9 +35,31 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet()); // Security headers
 
 // CORS configuration
+// Allow multiple origins for development and production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://emailaifront.vercel.app',
+];
+
+// Add custom origin from environment variable if provided
+if (process.env.CORS_ORIGIN) {
+  const customOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...customOrigins);
+}
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );
@@ -115,9 +137,9 @@ async function startServer() {
     await connectDB();
     console.log('✅ Connected to MongoDB');
 
-    // Start listening
-    app.listen(PORT, () => {
-      console.log(`✅ Server running on http://localhost:${PORT}`);
+    // Start listening on all interfaces (0.0.0.0) for Docker/containerized environments
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
       console.log(`📧 Email Sorter API ready`);
     });
   } catch (error) {
